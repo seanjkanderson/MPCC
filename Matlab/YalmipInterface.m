@@ -27,7 +27,7 @@ for i = 1:MPC_vars.N
                    x(:, i+1) == stage(i).Ak*x(:,i) + stage(i).Bk*u(:,i) + stage(i).gk ; %dynamics
                    stage(i).lb <= [x(:,i);u(:,i)] <= stage(i).ub; % bounds
                    stage(i).lg <= stage(i).Ck*x(:,i) <= stage(i).ug]; %track constraints
-
+            
     objective = objective + 0.5*(x(:,i)'*stage(i).Qk*x(:,i) + u(:,i)'*stage(i).Rk*u(:,i)) ...
                           + stage(i).fk'*x(:,i);  % cost
  
@@ -38,11 +38,11 @@ constraints = [constraints;
                stage(i).lb(1:nx+nu) <= x(:,i) <= stage(i).ub(1:nx+nu); %bounds
                stage(i).lg <= stage(i).Ck*x(:,i) <= stage(i).ug];  % track constraints
 yalmipTime = toc           
-ops = sdpsettings('solver','ecos','verbose',2);
+ops = sdpsettings('solver','gurobi','verbose',2);
 
 % solve QP
 tic;
-exitflag = solvesdp(constraints,objective,ops);
+exitflag = optimize(constraints,objective,ops);
 QPtime = toc;
 
 x_opt = double(x);

@@ -18,6 +18,8 @@ function [track,track2] = borderAdjustment(track2,ModelParams,safetyScaling)
 %%%% shrink track on both sides with 'WidthCar' %%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 WidthCar = 0.5*ModelParams.W*safetyScaling;
+% Instead of using car width, use the worst case width (corner)
+% WidthCar = sqrt((ModelParams.W/2)^2 + ((ModelParams.L/2)^2))*safetyScaling;
 %scale track to car size
 track2.center = track2.center*ModelParams.Scale;
 track2.inner = track2.inner*ModelParams.Scale;

@@ -13,8 +13,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [x, u, new_b, exitflag,info] = optimizer(TrackMPC,MPC_vars,ModelParams,n_cars, Y, x, u,  x0, u0)
-
+function [x, u, dupred, new_b, gp, exitflag,info, exo, stage] = optimizer_mpc(TrackMPC,MPC_vars,n_cars, controller, Y, x, u, X_hist, U_hist, dU_hist, x0, u0, gp, previous_soln)
+    
+    ModelParams = MPC_vars.ModelParams;
     % reshape X such that it can be used in DP
     X = reshape(x,(MPC_vars.N+1)*ModelParams.nx,1);
     % add other cars to X for DP
@@ -26,10 +27,14 @@ function [x, u, new_b, exitflag,info] = optimizer(TrackMPC,MPC_vars,ModelParams,
     [new_b,~] = getNewBorders(TrackMPC.traj,TrackMPC.borders,TrackMPC.track_center,X,n_cars,1,MPC_vars,ModelParams);
     
     % formulate MPCC problem and solve it given the DP bundaries
-    [xpred, upred,dupred,info] = getMPCmatrices(TrackMPC.traj,MPC_vars,ModelParams,new_b,x,u,x0,u0);
-
-    if (info.exitflag == 0)
-        exitflag = 0;
+    if strcmp(controller, "mpcc")
+        [xpred, upred,dupred,info, exitflag, stage] = getMPCmatrices(TrackMPC.traj,MPC_vars,ModelParams,new_b,x,u,x0,u0);
+        exo = struct;
+    else
+        [xpred, upred, dupred,gp,info, exitflag, exo, stage] = dataPrep(TrackMPC.traj,MPC_vars,ModelParams,new_b, x, u, X_hist, U_hist, dU_hist, gp, x0,u0, previous_soln, controller);
+    end
+    
+    if (exitflag == 0)
         x = xpred;
         u = upred;
     else

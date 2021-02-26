@@ -13,12 +13,37 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [  ] = PlotPrediction( x,u,b,Y,track,track2,traj,MPC_vars,ModelParams )
+function [  ] = PlotPrediction( x,u,b,Y,track,track2,traj,MPC_vars,ModelParams, constraints)
     
     N = MPC_vars.N;
     Ts = MPC_vars.Ts;
     
     tl = traj.ppx.breaks(end);
+    
+
+    tightened_bounds = [];
+    for i=1:length(constraints)
+        Ck = constraints(i).Ck;
+        try
+            Ck = (Ck'*blkdiag(MPC_vars.Tx,MPC_vars.Tu));
+        catch
+            Ck = (Ck*blkdiag(MPC_vars.Tx,MPC_vars.Tu));
+        end
+        
+        ug = constraints(i).ug;
+        lg = constraints(i).lg;
+        m_perp = Ck(2)/Ck(1);
+        x_max = ((-m_perp*x(1,i)+x(2,i)) - ug/Ck(2)) / (-Ck(1)/Ck(2)-m_perp);
+        y_max = m_perp*x_max+(-m_perp*x(1,i)+x(2,i));
+
+        x_min = ((-m_perp*x(1,i)+x(2,i)) + lg/Ck(2)) / (-Ck(1)/Ck(2)-m_perp);
+        y_min = m_perp*x_min+(-m_perp*x(1,i)+x(2,i));
+        tightened_bounds = [tightened_bounds; x_min,y_min,x_max,y_max];
+    end
+    
+    if isempty(tightened_bounds)
+        tightened_bounds = b;
+    end
     
     figure(1);
     plot(track.outer(1,:),track.outer(2,:),'r')
@@ -26,8 +51,10 @@ function [  ] = PlotPrediction( x,u,b,Y,track,track2,traj,MPC_vars,ModelParams )
     plot(track.inner(1,:),track.inner(2,:),'r')
     plot(track2.outer(1,:),track2.outer(2,:),'k')
     plot(track2.inner(1,:),track2.inner(2,:),'k')
-    plot(b(:,1),b(:,2),'g.')
-    plot(b(:,3),b(:,4),'g.')
+%     plot(b(:,1),b(:,2),'g.')
+%     plot(b(:,3),b(:,4),'g.')
+    plot(tightened_bounds(:,1),tightened_bounds(:,2),'g-.');
+    plot(tightened_bounds(:,3),tightened_bounds(:,4),'g-.');
     plot(ppval(traj.ppx,mod(x(7,:),tl)),ppval(traj.ppy,mod(x(7,:),tl)),':k')
     plot(x(1,:),x(2,:),'-b')
     carBox(x(:,1),ModelParams.W/2,ModelParams.L/2)
@@ -41,33 +68,33 @@ function [  ] = PlotPrediction( x,u,b,Y,track,track2,traj,MPC_vars,ModelParams )
     axis equal
     hold off
 
-    figure(2)
-    subplot(3,1,1)
-    plot([0:N-1]*Ts,u(1,:))
-    xlabel('time [s]')
-    ylabel('D [-]')
-    subplot(3,1,2)
-    plot([0:N-1]*Ts,u(2,:))
-    xlabel('time [s]')
-    ylabel('\delta [rad]')
-    subplot(3,1,3)
-    plot([0:N-1]*Ts,u(3,:))
-    xlabel('time [s]')
-    ylabel('v_{\Theta} [m/s]')
-
-    figure(3)
-    subplot(3,1,1)
-    plot([0:N]*Ts,x(3,:))
-    xlabel('time [s]')
-    ylabel('\phi [rad]')
-    subplot(3,1,2)
-    plot([0:N]*Ts,x(6,:))
-    xlabel('time [s]')
-    ylabel('\omega [rad/s]')
-    subplot(3,1,3)
-    plot([0:N]*Ts,x(7,:))
-    xlabel('time [s]')
-    ylabel('\Theta [m]')
+%     figure(2)
+%     subplot(3,1,1)
+%     plot([0:N-1]*Ts,u(1,:))
+%     xlabel('time [s]')
+%     ylabel('D [-]')
+%     subplot(3,1,2)
+%     plot([0:N-1]*Ts,u(2,:))
+%     xlabel('time [s]')
+%     ylabel('\delta [rad]')
+%     subplot(3,1,3)
+%     plot([0:N-1]*Ts,u(3,:))
+%     xlabel('time [s]')
+%     ylabel('v_{\Theta} [m/s]')
+% 
+%     figure(3)
+%     subplot(3,1,1)
+%     plot([0:N]*Ts,x(3,:))
+%     xlabel('time [s]')
+%     ylabel('\phi [rad]')
+%     subplot(3,1,2)
+%     plot([0:N]*Ts,x(6,:))
+%     xlabel('time [s]')
+%     ylabel('\omega [rad/s]')
+%     subplot(3,1,3)
+%     plot([0:N]*Ts,x(7,:))
+%     xlabel('time [s]')
+%     ylabel('\Theta [m]')
 
     pause(0.001)
 

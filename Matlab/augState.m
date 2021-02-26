@@ -13,7 +13,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [xTemp,uTemp] = augState(x,u,x0,MPC_vars,ModelParams,tl)
+function [xTemp,uTemp] = augState(x,u,x0,MPC_vars,ModelParams,tl, borders)
     
     nx = ModelParams.nx;
     nu = ModelParams.nu;
@@ -36,8 +36,36 @@ function [xTemp,uTemp] = augState(x,u,x0,MPC_vars,ModelParams,tl)
     uTemp(:,j) = u(:,j);
     
     j = N+1;
-    xTemp(:,j) = SimTimeStep(x(:,N+1),u(:,N),Ts,ModelParams);
+    % TODO: not sure that SimTimeStep makes sense in a learning
+    % context. Would need to use a more primitive model (or only what has
+    % been learned so far. (SA)
+%     xTemp(:,j) = SimTimeStep(x(:,N+1),u(:,N),Ts,ModelParams);
+    % Instead, and also to counter scenarios in which the planned path is
+    % degenerate and runs perpendicular to the track tangent, try adding
+    % the next state as a point assuming constant velocity from the last n
+    % points and in the direction of the centerline tangent. (SA)
+    theta_phys = mod(xTemp(end,N),tl); % assume theta is last state
+    x1=ppval(borders.pplx,theta_phys);
+    y1=ppval(borders.pply,theta_phys);
+    x2=ppval(borders.pprx,theta_phys);
+    y2=ppval(borders.ppry,theta_phys);
+    if (x1 < x2) && (y1 > y2)
+        phi = abs(atan((x1 - x2)/(y1 - y2))) + pi/2;
+    elseif (x1 < x2) && (y1 < y2)
+        phi = atan((y1 - y2)/(x1 - x2)) + pi;
+    else
+        phi = atan((y1 - y2)/(x1 - x2));
+    end
     
+    % add 90 degrees to phi to get the desired heading (perp to track
+    % tangent)
+    phi = phi - pi/2;
+    ave_velocity = sqrt(xTemp(4,N)^2 + xTemp(5,N)^2); % vx and vy.
+    xTemp(1:2,j) = xTemp(1:2,N) + ave_velocity * MPC_vars.Ts * [cos(phi); sin(phi)];
+    xTemp(3:end,j) = xTemp(3:end,N);
+    
+    % TODO: these constraints are endemic to the problem and should really
+    % be parameterized.
     if xTemp(indexPhi,1) - xTemp(indexPhi,2) > pi
         xTemp(indexPhi,2:end) = xTemp(indexPhi,2:end)+2*pi;
     end

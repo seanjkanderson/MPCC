@@ -13,7 +13,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [X,U,dU,info] = getMPCmatrices(traj,MPC_vars,ModelParams,borders,Xhor,Uhor,x0,u0)
+function [X,U,dU,info, exitflag, stage] = getMPCmatrices(traj,MPC_vars,ModelParams,borders,Xhor,Uhor,x0,u0)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % For each stage in the horizon compute the necessary system and cost %%%%%
@@ -71,6 +71,10 @@ stage(i).fk = costScale*generatef(traj,MPC_vars,ModelParams,Xk,i);
 %% Call solver interface
 if strcmp(MPC_vars.interface, 'Yalmip')
     % yalmip based interface (very slow)
+%     [X,U,info, dU] = cautiousMPCController(stage, [], MPC_vars, ModelParams, [], false);
+%     info = struct;
+%     info.exitflag = struct;
+%     info.exitflag.problem = 1;
     [X,U,dU,info] = YalmipInterface(stage,MPC_vars,ModelParams);
 elseif strcmp(MPC_vars.interface, 'CVX')
     % CVX based interface (slow)
@@ -84,6 +88,7 @@ elseif strcmp(MPC_vars.interface, 'quadprog')
 else
     error('invalid optimization interface')
 end
+exitflag = info.exitflag.problem;
 
 end
 
@@ -171,7 +176,7 @@ end
 
 % GENERATING f
 function f = generatef(pathinfo,MPC_vars,ModelParams,Xk,i)
-
+    % TODO: understand what is really happening here (SA)
     x_phys = Xk(1);
     y_phys = Xk(2);
 
